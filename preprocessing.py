@@ -76,4 +76,3 @@ def read_and_extract_homophones(hom_filename, data):
     return homophone_pairs_in_data, homophones_in_data, gahls_homophones, gahls_homophones_in_data, gahls_homophones_missing_in_data
 
 
-def
