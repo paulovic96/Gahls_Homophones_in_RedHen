@@ -5,6 +5,7 @@ import gzip
 import poioapi.annotationgraph
 import pandas as pd
 
+
 FILE_EXT = '.eaf.gz'
 LEN_FILE_EXT = len(FILE_EXT)
 
@@ -19,8 +20,8 @@ filepath = 'Data/eaf_files/2016-12-17_1330_US_KCET_Asia_Insight.eaf.gz'
 
 def read_eaf(filepath):
     file = os.path.basename(filepath)[:-LEN_FILE_EXT]
-    gesture_dict = {"time_region": [], "gesture": [], "file": []}  # store 1. Time Region, 2. Gesture, 3. File
-    speech_annotation_dict = {"time_region": [], "annotation": [], "file": []}  # store 1. Time Region, 2. Annotation, 3. File
+    gesture_dict = {"time_region": [], "gesture": [], "source_file": []}  # store 1. Time Region, 2. Gesture, 3. File
+    speech_annotation_dict = {"time_region": [], "annotation": [], "source_file": []}  # store 1. Time Region, 2. Annotation, 3. File
 
     # parsing ELAN's native .eaf file format with poio library
     ag = poioapi.annotationgraph.AnnotationGraph.from_elan(gzip.open(filepath))
@@ -30,7 +31,7 @@ def read_eaf(filepath):
     for annotation in ag.annotations_for_tier('ParentTier..Speech'):
         speech_annotation_dict["time_region"] += [parser.region_for_annotation(annotation)] # time_region
         speech_annotation_dict["annotation"] += [annotation.features['annotation_value']] # annotation
-        speech_annotation_dict["file"] += [file] # file
+        speech_annotation_dict["source_file"] += [file] # file
 
     speech_annotation_eaf_data = pd.DataFrame.from_dict(speech_annotation_dict)
 
@@ -46,13 +47,13 @@ def read_eaf(filepath):
                         for annotation in ag.annotations_for_tier(child_child[0]):
                             gesture_dict["time_region"] += [parser.region_for_annotation(annotation)] # time_region
                             gesture_dict["gesture"] += [key] # gesture
-                            gesture_dict["file"] += [file] # file
+                            gesture_dict["source_file"] += [file] # file
                 else:
                     key = child[0].split("..")[1] # get tier description
                     for annotation in ag.annotations_for_tier(child[0]):
                             gesture_dict["time_region"] += [parser.region_for_annotation(annotation)] # time_region
                             gesture_dict["gesture"] += [key] # gesture
-                            gesture_dict["file"] += [file] # file
+                            gesture_dict["source_file"] += [file] # file
 
     gesture_eaf_data = pd.DataFrame.from_dict(gesture_dict)
 
@@ -78,8 +79,8 @@ def read_eaf(filepath):
     speech_annotation_eaf_data["start"] = start
     speech_annotation_eaf_data["end"] = end
 
-    gesture_eaf_data = gesture_eaf_data.drop(columns=['time_region'])
-    speech_annotation_eaf_data = speech_annotation_eaf_data.drop(columns=['time_region'])
+    #gesture_eaf_data = gesture_eaf_data.drop(columns=['time_region'])
+    #speech_annotation_eaf_data = speech_annotation_eaf_data.drop(columns=['time_region'])
 
     return (speech_annotation_eaf_data, gesture_eaf_data)
 
@@ -93,9 +94,9 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
 
     file_time_points = {}
 
-    for file in np.unique(gesture_eaf_data["file"]):
-        speech_annotation_file_i = speech_annotation_eaf_data[speech_annotation_eaf_data["file"] == file].copy()
-        gesture_annotation_file_i = gesture_eaf_data[gesture_eaf_data["file"] == file].copy()
+    for file in np.unique(gesture_eaf_data["source_file"]):
+        speech_annotation_file_i = speech_annotation_eaf_data[speech_annotation_eaf_data["source_file"] == file].copy()
+        gesture_annotation_file_i = gesture_eaf_data[gesture_eaf_data["source_file"] == file].copy()
 
         # create Time point tuple with info about 1. time point 2. annotation value 3. Start or End point 4. Speech annotation or gesture
         start_speech_time_points_i = list(zip(list(speech_annotation_file_i["start"]), list(speech_annotation_file_i["annotation"]),np.repeat("start", len(speech_annotation_file_i)), np.repeat("annotation", len(speech_annotation_file_i))))
@@ -106,27 +107,36 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
         annotation_time_points_i[::2] = start_speech_time_points_i
         annotation_time_points_i[1::2] = end_speech_time_points_i
 
+        annotation_time_regions_i = list(np.repeat(speech_annotation_file_i["time_region"],2))
+
         start_gesture_time_points_i = list(zip(list(gesture_annotation_file_i["start"]), list(gesture_annotation_file_i["gesture"]),np.repeat("start", len(gesture_annotation_file_i)), np.repeat("gesture", len(gesture_annotation_file_i))))
         end_gesture_time_points_i = list(zip(list(gesture_annotation_file_i["end"]), list(gesture_annotation_file_i["gesture"]),np.repeat("end", len(gesture_annotation_file_i)), np.repeat("gesture", len(gesture_annotation_file_i))))
+
+        gesture_time_regions_i = list(np.repeat(gesture_annotation_file_i["time_region"],2))
 
         # add all time points to one list and sort by time
         time_points = annotation_time_points_i + start_gesture_time_points_i + end_gesture_time_points_i
         time_points.sort(key=lambda x: x[0])
 
+        time_regions = annotation_time_regions_i + gesture_time_regions_i
+        time_regions.sort(key=lambda x: x[0])
+
+
         # add sorted time points to file dic
-        file_time_points[file] = time_points
+        file_time_points[file] = (time_points,time_regions)
 
     # Line Sweep Algorithm to keep track of active annotations over time
     # for each file hold lists of active annotations and gestures
     # for each time_point add current file, time_point, annotation and list of gestures to dataset
 
-    annotation_gesture_dict = {"file":[], "time_point":[], "annotation":[], "gesture": []}
+    annotation_gesture_dict = {"source_file":[], "time_point":[], "annotation":[], "gesture": [], "time_region": []}
 
     for current_file in file_time_points.keys(): # iterate over time points
-        current_file_time_points = file_time_points[current_file] # get time points
+        current_file_time_points = file_time_points[current_file][0] # get time points
+        current_file_time_regions = file_time_points[current_file][1] # get time regions (for later checking and adding of end points if pauses not removed)
         active_gestures = [] # currently (at given time point) active gestures
         active_annotations = [] # currently (at given time point) active annotations
-        for time_point in current_file_time_points: # iterate over time points
+        for i,time_point in enumerate(current_file_time_points): # iterate over time points
             if time_point[2] == 'start':
                 if time_point[3] == 'annotation':
                     active_annotations.append(time_point[1]) # new annotations
@@ -139,8 +149,10 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
                     active_gestures.remove(time_point[1]) # gesture finished
 
             # info at each point in time
-            annotation_gesture_dict["file"].append(current_file)
+            annotation_gesture_dict["source_file"].append(current_file)
+            annotation_gesture_dict["time_region"].append(current_file_time_regions[i])
             annotation_gesture_dict["time_point"].append(time_point)
+
             annotation_gesture_dict["annotation"].append(list(active_annotations))
             annotation_gesture_dict["gesture"].append(list(active_gestures))
 
@@ -178,11 +190,92 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
     annotation_gesture_eaf_data = annotation_gesture_eaf_data[annotation_gesture_eaf_data.index.get_level_values(0).isin(indices)]
     annotation_gesture_eaf_data["start"] = valid_start_points
 
-    merged_annotation_gesture_eaf_data = speech_annotation_eaf_data.merge(annotation_gesture_eaf_data[["file", "annotation", "gesture", "start", "time_point"]], on=["file", "start", "annotation"], how = "outer")
+    merged_annotation_gesture_eaf_data = speech_annotation_eaf_data.merge(annotation_gesture_eaf_data[["source_file", "annotation", "gesture", "start", "time_point", "time_region"]], on=["source_file", "start", "annotation"], how = "outer")
+
+    merged_annotation_gesture_eaf_data.sort_values(by="start", inplace=True, ignore_index=True)
+    merged_annotation_gesture_eaf_data.loc[pd.notnull(merged_annotation_gesture_eaf_data["time_region_x"]),"time_region_y"] = np.nan
+    merged_annotation_gesture_eaf_data.rename(columns={"time_region_y": "time_region_gesture"}, inplace = True)
+    merged_annotation_gesture_eaf_data.drop(columns=['time_region_x'], inplace = True)
+
+
+
+    # fill in missing end points for pauses = no annotation but gesture present
+    if not remove_pauses:
+        valid_end_points = []
+        active_gesture = ""
+        active_end_region = 0
+
+        for index, row in merged_annotation_gesture_eaf_data.iterrows():
+            if pd.isnull(row["end"]):
+                if len(active_gesture) == 0:
+                    active_gesture = row["gesture"]
+                    active_end_region = row["time_region_gesture"][1]
+                else : # new gesture present
+                    if row["start"] <= active_end_region:
+                        valid_end_points.append(row["start"])
+                    else:
+                        valid_end_points.append(active_end_region)
+                    active_gesture = row["gesture"]
+                    active_end_region = row["time_region_gesture"][1]
+            else: # annoation
+                if len(active_gesture) == 0:
+                    valid_end_points.append(row["end"])
+                else:
+                    if row["start"] <= active_end_region:
+                        valid_end_points.append(row["start"])
+                        valid_end_points.append(row["end"])
+
+                    else:
+                        valid_end_points.append(active_end_region)
+                        valid_end_points.append(row["end"])
+                    active_gesture = ""
+                    active_end_region = 0
+
+        if len(active_gesture)>0:
+            valid_end_points.append(active_end_region)
+
+        merged_annotation_gesture_eaf_data["end"] = valid_end_points
+
 
     return merged_annotation_gesture_eaf_data
 
 
+def binary_encode_gestures(data, gesture_column = "gesture"):
+    unique_gestures = set()
+    for gesture_list in data[gesture_column]:
+        if isinstance(gesture_list, list):
+            for gesture in gesture_list:
+                unique_gestures.add(gesture)
+        else:
+            unique_gestures.add("none")
 
-difference = merged_annotation_gesture_eaf_data.merge(speech_annotation_eaf_data, how='outer', indicator=True).loc[lambda x: x['_merge'] == 'left_only']
+    binary_gestures = {}
+    for gesture in unique_gestures:
+        binary_gestures.update({gesture: []})
+
+    for gesture_list in data[gesture_column]:
+        if isinstance(gesture_list, list):
+            for key in binary_gestures.keys():
+                if key in gesture_list:
+                    binary_gestures[key] += [1]
+                else:
+                    binary_gestures[key] += [0]
+
+        else:
+            for key in binary_gestures.keys():
+                if key != "none":
+                    binary_gestures[key] += [0]
+                else:
+                    binary_gestures["none"] += [1]
+
+    binary_gesture_data = pd.DataFrame.from_dict(binary_gestures)
+    binary_gesture_data["is_gesture"] = binary_gesture_data["none"] == 0
+
+    return data.join(binary_gesture_data)
+
+speech_annotation_eaf_data, gesture_eaf_data = read_eaf(filepath)
+remove_pauses = True
+merged_annotation_gesture_eaf_data = map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, remove_pauses=remove_pauses)
+
+merged_annotation_gesture_eaf_data = binary_encode_gestures(merged_annotation_gesture_eaf_data, gesture_column = "gesture")
 
