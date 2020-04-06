@@ -10,9 +10,16 @@ def calculate_duration(start,end):
     duration = end - start
     return duration
 
-
 def calculate_frequency_by_column(df,column):
     return df.groupby([column])[column].transform("count")
+
+def get_previous_or_next_word(df,shift,word_column= "word", source_column = "source_file", start_column = "start"):
+    sorted_df = df.sort_values(by=[source_column, start_column])
+    if shift == "prev":
+        shifted_word_column = sorted_df.groupby([source_column])[word_column].shift(1)
+    if shift == "next":
+        shifted_word_column = sorted_df.groupby([source_column])[word_column].shift(-1)
+    return shifted_word_column
 
 
 def read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessing=True, drop_error_columns=False):
@@ -31,6 +38,11 @@ def read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessi
         df.word = df.word.apply(word_preprocessing)
         df.duration = df.apply(lambda row: calculate_duration(row["start"], row['end']), axis=1)
         df["word_frequency"] = calculate_frequency_by_column(df,column="word")
+        df["prev_word"] = get_previous_or_next_word(df,shift = "prev")
+        df["prev_word_frequency"] = get_previous_or_next_word(df,shift="prev", word_column="word_frequency")
+        df["next_word"] = get_previous_or_next_word(df,shift = "next")
+        df["next_word_frequency"] = get_previous_or_next_word(df, shift="next", word_column="word_frequency")
+
     if drop_error_columns:
         df = df.drop(columns=['mp4_error', 'aac_error', 'aac2wav_error', 'eafgz_error'])
     print(df.shape, df.index)
@@ -76,3 +88,22 @@ def read_and_extract_homophones(hom_filename, data):
     return homophone_pairs_in_data, homophones_in_data, gahls_homophones, gahls_homophones_in_data, gahls_homophones_missing_in_data
 
 
+def calculate_contextual_predictability(hom_data, word_column = "word", prev_word_column = "prev_word", next_word_column = "next_word", prev_word_freq_column = "prev_word_frequency", next_word_freq_column = "next_word_frequency" ):
+    hom_data["prev_word_string"] = hom_data[prev_word_column] + "-" + hom_data[word_column]
+    hom_data["next_word_string"] = hom_data[word_column] + "_" + hom_data[next_word_column]
+
+    hom_data["prev_word_string_frequency"] = calculate_frequency_by_column(hom_data,"prev_word_string")
+    hom_data["next_word_string_frequency"] = calculate_frequency_by_column(hom_data,"next_word_string")
+
+    hom_data["cond_pred_prev"] = hom_data["prev_word_string_frequency"]/hom_data[prev_word_freq_column]
+    hom_data["cond_pred_next"] = hom_data["next_word_string_frequency"]/hom_data[next_word_freq_column]
+
+    return hom_data
+
+
+def calculate_letter_length(df, word_column="word"):
+    df["letter_length"] = df[word_column].apply(lambda word: len(list(word)))
+    return df
+
+
+#def
