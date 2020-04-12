@@ -57,35 +57,42 @@ def read_and_extract_homophones(hom_filename, data):
     gahls_homophones_in_data = gahls_homophones[gahls_homophones["spell"].isin(homophones_present_in_data)].copy()
     gahls_homophones_missing_in_data = gahls_homophones[gahls_homophones["spell"].isin(homophones_missing_in_data)].copy()
 
-    pronunciation_count = pd.value_counts(gahls_homophones_in_data["pron"])
-    homophone_pairs = pronunciation_count[pronunciation_count == 2]
 
-    gahls_homophones_in_data_pairs = gahls_homophones_in_data[gahls_homophones_in_data["pron"].isin(homophone_pairs.index)]
-    homophone_pairs_in_data = data[data["word"].isin(gahls_homophones_in_data_pairs["spell"])].copy()
-
-    homophone_pairs_in_data = homophone_pairs_in_data.drop_duplicates()
     homophones_in_data = data[data["word"].isin(gahls_homophones_in_data["spell"])].copy().drop_duplicates()
 
-    print("Homophone Pairs found in Data:", int(len(np.unique(homophone_pairs_in_data.word))/2))
+    pronunciation_count = pd.value_counts(gahls_homophones_in_data["pron"])
+    homophone_pairs = pronunciation_count[pronunciation_count == 2]
+    gahls_homophones_in_data_pairs = gahls_homophones_in_data[gahls_homophones_in_data["pron"].isin(homophone_pairs.index)]
+    homophones_in_data["has_pair"] = data["word"].isin(gahls_homophones_in_data_pairs["spell"])
+
+    # homophone_pairs_in_data = data[data["word"].isin(gahls_homophones_in_data_pairs["spell"])].copy()
+    # homophone_pairs_in_data = homophone_pairs_in_data.drop_duplicates()
+
     print("%d out of %d homophones found in Data:" % (len(np.unique(homophones_in_data.word)), len(np.unique(gahls_homophones.spell))))
+    pairs = homophones_in_data.groupby("word").first().has_pair
+    print("Homophone Pairs found in Data:", int(np.sum(pairs)/2))
+    print("Homophones without Pair: ", list(pairs.iloc[np.where(pairs == False)[0]].index))
     print("Missing homophones:", np.unique(gahls_homophones_missing_in_data.spell))
 
 
     gahls_homophones_in_data.rename(columns={'spell':'word'}, inplace=True)
     gahls_homophones_missing_in_data.rename(columns={'spell':'word'}, inplace=True)
 
-    homophone_pairs_in_data = homophone_pairs_in_data.merge(gahls_homophones_in_data[["word", "pron"]], on="word")
-    homophone_pairs_in_data["pron_frequency"] = calculate_frequency_by_column(homophone_pairs_in_data,column="pron")
+    #homophone_pairs_in_data = homophone_pairs_in_data.merge(gahls_homophones_in_data[["word", "pron"]], on="word")
+    #homophone_pairs_in_data["pron_frequency"] = calculate_frequency_by_column(homophone_pairs_in_data,column="pron")
 
-    max_idx = homophone_pairs_in_data.groupby(['pron'])['pron_frequency'].transform(max).copy() == homophone_pairs_in_data["pron_frequency"]
-    homophone_pairs_in_data["is_max"] = np.asarray(max_idx,dtype = np.int)
+    #max_idx = homophone_pairs_in_data.groupby(['pron'])['pron_frequency'].transform(max).copy() == homophone_pairs_in_data["pron_frequency"]
+    #homophone_pairs_in_data["is_max"] = np.asarray(max_idx,dtype = np.int)
 
 
-    homophones_in_data = homophones_in_data.merge(gahls_homophones_in_data[["word", "pron"]], on="word")
+    homophones_in_data = homophones_in_data.merge(gahls_homophones_in_data[["word", "pron", "celexPhon"]], on="word")
     homophones_in_data["pron_frequency"] = calculate_frequency_by_column(homophones_in_data,column="pron")
 
+    max_idx = homophones_in_data.groupby(['pron'])['pron_frequency'].transform(max).copy() == homophones_in_data["pron_frequency"]
+    homophones_in_data["is_max"] = np.asarray(max_idx,dtype = np.int)
 
-    return homophone_pairs_in_data, homophones_in_data, gahls_homophones, gahls_homophones_in_data, gahls_homophones_missing_in_data
+
+    return homophones_in_data, gahls_homophones, gahls_homophones_missing_in_data
 
 
 def calculate_contextual_predictability(hom_data, word_column = "word", prev_word_column = "prev_word", next_word_column = "next_word", prev_word_freq_column = "prev_word_frequency", next_word_freq_column = "next_word_frequency" ):
