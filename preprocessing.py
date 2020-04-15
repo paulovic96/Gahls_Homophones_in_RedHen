@@ -1,10 +1,28 @@
 import pandas as pd
 import numpy as np
+import eaf_file_processing
+import mp4_file_processing
+import seg_file_processing
+import gentle_file_processing
+
+
+FILE_BASE = '/mnt/Restricted/Corpora/RedHen'
+
+EAF_FILE_EXT = ".eaf.gz"
+MP4_FILE_EXT = ".mp4"
+SEG_FILE_EXT = ".seg"
+GENTLE_FILE_EXT = ".gentleoutput_v2.json.gz"
+
+def get_file_path(source_file):
+    year,month,day = source_file.split("_")[0].split("-")
+    file_path = "%s/%s-%s/%s-%s-%s/" % (year, year, month, year,month,day)
+    file_path += source_file
+    return file_path
+
 
 def word_preprocessing(word):
     word = word.lower()
     return word
-
 
 def calculate_duration(start,end):
     duration = end - start
@@ -20,6 +38,7 @@ def get_previous_or_next_word(df,shift,word_column= "word", source_column = "sou
     if shift == "next":
         shifted_word_column = sorted_df.groupby([source_column])[word_column].shift(-1)
     return shifted_word_column
+
 
 
 def read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessing=True, drop_error_columns=False):
@@ -42,6 +61,7 @@ def read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessi
         df["prev_word_frequency"] = get_previous_or_next_word(df,shift="prev", word_column="word_frequency")
         df["next_word"] = get_previous_or_next_word(df,shift = "next")
         df["next_word_frequency"] = get_previous_or_next_word(df, shift="next", word_column="word_frequency")
+        df["letter_length"] = df["word"].apply(lambda word: len(list(word)))
 
     if drop_error_columns:
         df = df.drop(columns=['mp4_error', 'aac_error', 'aac2wav_error', 'eafgz_error'])
@@ -108,9 +128,20 @@ def calculate_contextual_predictability(hom_data, word_column = "word", prev_wor
     return hom_data
 
 
-def calculate_letter_length(df, word_column="word"):
-    df["letter_length"] = df[word_column].apply(lambda word: len(list(word)))
-    return df
+def get_gesture_data_from_eaf_files(df, remove_pauses=True):
+    file_folder = FILE_BASE + "/original/"
+    gesture_df = None
+    for file in np.unique(df["source_file"]):
+        filepath = file_folder + get_file_path(file) + EAF_FILE_EXT
+        speech_annotation_eaf_data, gesture_eaf_data = eaf_file_processing.read_eaf(filepath)
+        merged_annotation_gesture_eaf_data = eaf_file_processing.map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data,remove_pauses=remove_pauses)
 
+        merged_annotation_gesture_eaf_data = eaf_file_processing.binary_encode_gestures(merged_annotation_gesture_eaf_data,gesture_column="gesture")
 
-#def
+        if gesture_df == None:
+            gesture_df = merged_annotation_gesture_eaf_data
+        else:
+            gesture_df = pd.concat([gesture_df, merged_annotation_gesture_eaf_data], ignore_index=True)
+
+    return gesture_df
+

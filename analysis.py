@@ -3,7 +3,8 @@ import preprocessing
 filename = "Data/2016_all_words_no_audio.pickle"
 hom_filename = "Data/hom.csv"
 
-df = preprocessing.read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessing=True, drop_error_columns=False)
+df = preprocessing.read_dataframe(filename, remove_pauses=False, remove_errors=True, preprocessing=True, drop_error_columns=False)
+
 homophones_in_data, gahls_homophones, gahls_homophones_missing_in_data = preprocessing.read_and_extract_homophones(hom_filename, df)
 
 
@@ -22,6 +23,19 @@ words_annotated_not_in_data = list(set(list(np.unique(test_eaf_data.annotation))
 
 
 
+# add gesture data
+speech_annotation_eaf_data, gesture_eaf_data = read_eaf(filepath)
+remove_pauses = True
+merged_annotation_gesture_eaf_data = map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, remove_pauses=remove_pauses)
+
+merged_annotation_gesture_eaf_data = binary_encode_gestures(merged_annotation_gesture_eaf_data, gesture_column = "gesture")
+
+
+
+
+
+
+# pronunciation predictability
 celex_dict_file = "Data/epw.cd"
 import pandas as pd
 import numpy as np
@@ -71,4 +85,5 @@ homophones_in_data = get_celex_transcription(homophones_in_data,celex_phonology_
 
 disc_characters_used_in_data = set(''.join(list(set(homophones_in_data.celexPhon))))
 disc_characters_for_berndts_encoding = set(''.join([str(i) for i in list(set(berndt_character_code.DISC))]))
+
 

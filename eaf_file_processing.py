@@ -9,7 +9,7 @@ import pandas as pd
 FILE_EXT = '.eaf.gz'
 LEN_FILE_EXT = len(FILE_EXT)
 
-filepath = 'Data/eaf_files/2016-12-17_1330_US_KCET_Asia_Insight.eaf.gz'
+#filepath = 'Data/eaf_files/2016-12-17_1330_US_KCET_Asia_Insight.eaf.gz'
 
 #import shutil
 #import gzip
@@ -273,9 +273,4 @@ def binary_encode_gestures(data, gesture_column = "gesture"):
 
     return data.join(binary_gesture_data)
 
-speech_annotation_eaf_data, gesture_eaf_data = read_eaf(filepath)
-remove_pauses = True
-merged_annotation_gesture_eaf_data = map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, remove_pauses=remove_pauses)
-
-merged_annotation_gesture_eaf_data = binary_encode_gestures(merged_annotation_gesture_eaf_data, gesture_column = "gesture")
 
