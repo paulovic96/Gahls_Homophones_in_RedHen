@@ -6,16 +6,22 @@ import seg_file_processing
 import gentle_file_processing
 
 
-FILE_BASE = '/mnt/Restricted/Corpora/RedHen'
+FILE_BASE = 'Data' #'/mnt/Restricted/Corpora/RedHen'
 
 EAF_FILE_EXT = ".eaf.gz"
-MP4_FILE_EXT = ".mp4"
+VIDEO_FILE_EXT = ".mp4"
 SEG_FILE_EXT = ".seg"
 GENTLE_FILE_EXT = ".gentleoutput_v2.json.gz"
 
-def get_file_path(source_file):
+
+FILE_DESCRIPTIONS_TO_EXT = {"video": VIDEO_FILE_EXT, "eaf":EAF_FILE_EXT, "seg":SEG_FILE_EXT, "gentle":GENTLE_FILE_EXT}
+
+def get_file_path(source_file, is_gentle_file=False):
     year,month,day = source_file.split("_")[0].split("-")
-    file_path = "%s/%s-%s/%s-%s-%s/" % (year, year, month, year,month,day)
+    if is_gentle_file:
+        file_path = "%s_gentle_v2/%s-%s/%s-%s-%s/" % (year, year, month, year,month,day)
+    else:
+        file_path = "%s/%s-%s/%s-%s-%s/" % (year, year, month, year,month,day)
     file_path += source_file
     return file_path
 
@@ -115,7 +121,7 @@ def read_and_extract_homophones(hom_filename, data):
     return homophones_in_data, gahls_homophones, gahls_homophones_missing_in_data
 
 
-def calculate_contextual_predictability(hom_data, word_column = "word", prev_word_column = "prev_word", next_word_column = "next_word", prev_word_freq_column = "prev_word_frequency", next_word_freq_column = "next_word_frequency" ):
+def calculate_contextual_predictability_of_homophones(hom_data, word_column = "word", prev_word_column = "prev_word", next_word_column = "next_word", prev_word_freq_column = "prev_word_frequency", next_word_freq_column = "next_word_frequency" ):
     hom_data["prev_word_string"] = hom_data[prev_word_column] + "-" + hom_data[word_column]
     hom_data["next_word_string"] = hom_data[word_column] + "_" + hom_data[next_word_column]
 
@@ -128,20 +134,39 @@ def calculate_contextual_predictability(hom_data, word_column = "word", prev_wor
     return hom_data
 
 
-def get_gesture_data_from_eaf_files(df, remove_pauses=True):
-    file_folder = FILE_BASE + "/original/"
-    gesture_df = None
+
+def get_additional_data_from_files(df, file_description): # ["video", "eaf", "seg", "gentle"]
+    if file_description == "gentle":
+        file_folder = FILE_BASE + "/gentle/"
+        is_gentle_file = True
+    else:
+        file_folder = FILE_BASE + "/original/"
+        is_gentle_file = False
+
+    file_df = None
+
     for file in np.unique(df["source_file"]):
-        filepath = file_folder + get_file_path(file) + EAF_FILE_EXT
-        speech_annotation_eaf_data, gesture_eaf_data = eaf_file_processing.read_eaf(filepath)
-        merged_annotation_gesture_eaf_data = eaf_file_processing.map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data,remove_pauses=remove_pauses)
+        filepath = file_folder + get_file_path(file,is_gentle_file=is_gentle_file) + FILE_DESCRIPTIONS_TO_EXT[file_description]
+        #print(filepath)
+        if file_description == "video":
+            file_i_df = mp4_file_processing.get_word_video_snippet_size(df, filepath)
+        elif file_description == "eaf":
+            speech_annotation_eaf_data, gesture_eaf_data = eaf_file_processing.read_eaf(filepath)
+            file_i_df = eaf_file_processing.map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, remove_pauses=False)
+            file_i_df = eaf_file_processing.binary_encode_gestures(file_i_df, gesture_column="gesture")
 
-        merged_annotation_gesture_eaf_data = eaf_file_processing.binary_encode_gestures(merged_annotation_gesture_eaf_data,gesture_column="gesture")
+        elif file_description == "seg":
+            file_i_df = seg_file_processing.get_seg_file_pos_info(filepath)
 
-        if gesture_df == None:
-            gesture_df = merged_annotation_gesture_eaf_data
+        elif file_description == "gentle":
+            file_i_df = gentle_file_processing.get_gentle_file_transcripts(filepath)
+
         else:
-            gesture_df = pd.concat([gesture_df, merged_annotation_gesture_eaf_data], ignore_index=True)
+            print("Unknown file description! Don't know what to do with %s files..." % file_description)
 
-    return gesture_df
+        if file_df is None:
+            file_df = file_i_df
+        else:
+            file_df = pd.concat([file_df, file_i_df], ignore_index=True)
 
+    return file_df

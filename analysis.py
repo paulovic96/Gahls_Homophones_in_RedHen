@@ -1,17 +1,26 @@
 import preprocessing
+import pandas as pd
+import numpy as np
 
 filename = "Data/2016_all_words_no_audio.pickle"
 hom_filename = "Data/hom.csv"
 
-df = preprocessing.read_dataframe(filename, remove_pauses=False, remove_errors=True, preprocessing=True, drop_error_columns=False)
+#df = preprocessing.read_dataframe(filename, remove_pauses=False, remove_errors=True, preprocessing=True, drop_error_columns=False)
+
+
+
+source_files = ["2016-12-17_1330_US_KCET_Asia_Insight", "2016-10-25_2300_US_KABC_Eyewitness_News_4PM"]
+
+sub_df = pd.read_csv("sub_df.csv", index_col="Unnamed: 0") #df[df["source_file"].isin(source_files)].copy()
+eaf_data = preprocessing.get_additional_data_from_files(sub_df, "eaf")
+seg_data = preprocessing.get_additional_data_from_files(sub_df, "seg")
+gentle_data = preprocessing.get_additional_data_from_files(sub_df, "gentle")
+video_data = preprocessing.get_additional_data_from_files(sub_df, "video")
+
 
 homophones_in_data, gahls_homophones, gahls_homophones_missing_in_data = preprocessing.read_and_extract_homophones(hom_filename, df)
 
 
-source_file = '2016-12-17_1330_US_KCET_Asia_Insight'
-
-test_hom_data = homophone_pairs_in_data[homophone_pairs_in_data.source_file == source_file].copy()
-test_data = df[df.source_file == source_file].copy()
 
 test_eaf_data = merged_annotation_gesture_eaf_data.copy()
 test_eaf_data["duration"] = (test_eaf_data.end - test_eaf_data.start)/1000

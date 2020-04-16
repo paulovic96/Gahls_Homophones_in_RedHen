@@ -11,12 +11,6 @@ LEN_FILE_EXT = len(FILE_EXT)
 
 #filepath = 'Data/eaf_files/2016-12-17_1330_US_KCET_Asia_Insight.eaf.gz'
 
-#import shutil
-#import gzip
-#with open('Data/eaf_files/2016-12-17_1330_US_KCET_Asia_Insight.eaf', 'rb') as f_in:
-#    with gzip.open('Data/eaf_files/2016-12-17_1330_US_KCET_Asia_Insight.eaf.gz', 'wb') as f_out:
-#        shutil.copyfileobj(f_in, f_out)
-
 
 def read_eaf(filepath):
     file = os.path.basename(filepath)[:-LEN_FILE_EXT]
