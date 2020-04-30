@@ -4,7 +4,9 @@ import eaf_file_processing
 import mp4_file_processing
 import seg_file_processing
 import gentle_file_processing
-
+import tqdm
+from time import sleep
+import sys
 
 FILE_BASE = 'Data' #'/mnt/Restricted/Corpora/RedHen'
 
@@ -37,20 +39,28 @@ def calculate_duration(start,end):
 def calculate_frequency_by_column(df,column):
     return df.groupby([column])[column].transform("count")
 
-def get_previous_or_next_word(df,shift,word_column= "word", source_column = "source_file", start_column = "start"):
-    sorted_df = df.sort_values(by=[source_column, start_column])
-    if shift == "prev":
-        shifted_word_column = sorted_df.groupby([source_column])[word_column].shift(1)
-    if shift == "next":
-        shifted_word_column = sorted_df.groupby([source_column])[word_column].shift(-1)
-    return shifted_word_column
 
+def is_preceding_or_subsequent_to_pause(df,source_c = 'source_file', word_c = "word", pause_indicator = "<non-speech>"):
+    pause_df = df.copy()
+    pause_df["prev_word"] = pause_df.groupby([source_c])[word_c].shift(1)
+    pause_df["next_word"] = pause_df.groupby([source_c])[word_c].shift(-1)
+
+    pause_df["preceding_pause"] = pause_df["prev_word"] == pause_indicator
+    pause_df["subsequent_pause"] = pause_df["next_word"] == pause_indicator
+
+    return pause_df["preceding_pause"], pause_df["subsequent_pause"]
 
 
 def read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessing=True, drop_error_columns=False):
     print(f'read dataframe from {filename}')
     df = pd.read_pickle(filename)
+    df.sort_values(by = ["source_file","start"], inplace = True)
+
     if remove_pauses:
+        if preprocessing:
+            print("Preprocessing: extract pause information...")
+            df["preceding_pause"], df["subsequent_pause"] = is_preceding_or_subsequent_to_pause(df)
+        print("Remove pauses from data!")
         df = df[df.word != "<non-speech>"]
     if remove_errors:
         df = df[df.mp4_error == 'no-error']
@@ -58,16 +68,53 @@ def read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessi
         df = df[df.aac2wav_error == 'no-error']
         df = df[df.eafgz_error == 'no-error']
         df = df[df.seg_error == 'no-error']
+
     df = df.set_index(pd.RangeIndex(df.shape[0]))
+
     if preprocessing:
-        df.word = df.word.apply(word_preprocessing)
-        df.duration = df.apply(lambda row: calculate_duration(row["start"], row['end']), axis=1)
+        print("Preprocessing: apply word preprocessing...")
+        df.word = df.word.str.lower()#df.word.apply(word_preprocessing)
+        print("Preprocessing: calculate word duration...")
+        df.duration = df.end - df.start
+
+        print("Preprocessing: calculate word frequency...")
         df["word_frequency"] = calculate_frequency_by_column(df,column="word")
-        df["prev_word"] = get_previous_or_next_word(df,shift = "prev")
-        df["prev_word_frequency"] = get_previous_or_next_word(df,shift="prev", word_column="word_frequency")
-        df["next_word"] = get_previous_or_next_word(df,shift = "next")
-        df["next_word_frequency"] = get_previous_or_next_word(df, shift="next", word_column="word_frequency")
+
+        print("Preprocessing: extract context information...")
+        if remove_pauses:
+            df["prev_word"] = df.groupby(["source_file"])["word"].shift(1)
+            df["prev_word_frequency"] = df.groupby(["source_file"])["word_frequency"].shift(1)
+            df["next_word"] = df.groupby(["source_file"])["word"].shift(-1)
+            df["next_word_frequency"] = df.groupby(["source_file"])["word_frequency"].shift(-1)
+
+        else:
+            prev_words = df[df.word != "<non-speech>"].groupby(["source_file"])["word"].shift(1)
+            prev_word_frequencies = df[df.word != "<non-speech>"].groupby(["source_file"])["word_frequency"].shift(1)
+            next_words = df[df.word != "<non-speech>"].groupby(["source_file"])["word"].shift(-1)
+            next_word_frequencies = df[df.word != "<non-speech>"].groupby(["source_file"])["word_frequency"].shift(-1)
+
+            df.loc[df.word != "<non-speech>", "prev_word"] = prev_words
+            df.loc[df.word != "<non-speech>", "prev_word_frequency"] = prev_word_frequencies
+            df.loc[df.word != "<non-speech>", "next_word"] = next_words
+            df.loc[df.word != "<non-speech>", "next_word_frequency"] = next_word_frequencies
+
+            print("Preprocessing: extract pause information...")
+            preceding_pauses, subsequent_pauses = is_preceding_or_subsequent_to_pause(df)
+            df.loc[df.word != "<non-speech>", "preceding_pause"] = preceding_pauses
+            df.loc[df.word != "<non-speech>", "subsequent_pause"] = subsequent_pauses
+
+        print("Preprocessing: calculate letter length...")
         df["letter_length"] = df["word"].apply(lambda word: len(list(word)))
+
+        print("Preprocessing: calculate contextual predictability...")
+        df["prev_word_string"] = df['prev_word'] + "-" + df['word']
+        df["next_word_string"] = df['word'] + "-" + df['next_word']
+
+        df["prev_word_string_frequency"] = calculate_frequency_by_column(df, "prev_word_string")
+        df["next_word_string_frequency"] = calculate_frequency_by_column(df, "next_word_string")
+
+        df["cond_pred_prev"] = df["prev_word_string_frequency"] / df['prev_word_frequency']
+        df["cond_pred_next"] = df["next_word_string_frequency"] / df['next_word_frequency']
 
     if drop_error_columns:
         df = df.drop(columns=['mp4_error', 'aac_error', 'aac2wav_error', 'eafgz_error'])
@@ -75,9 +122,11 @@ def read_dataframe(filename, remove_pauses=True, remove_errors=True, preprocessi
     return df
 
 
-def read_and_extract_homophones(hom_filename, data):
+def read_and_extract_homophones(hom_filename, data, include_pauses=True):
     print(f'read Gahls Homophone data from {hom_filename}')
     gahls_homophones = pd.read_csv(hom_filename, index_col="Unnamed: 0")
+
+
     homophones_present_in_data = gahls_homophones[gahls_homophones["spell"].isin(data["word"])]["spell"]
     homophones_missing_in_data = gahls_homophones[~gahls_homophones["spell"].isin(data["word"])]["spell"]
     gahls_homophones_in_data = gahls_homophones[gahls_homophones["spell"].isin(homophones_present_in_data)].copy()
@@ -121,17 +170,7 @@ def read_and_extract_homophones(hom_filename, data):
     return homophones_in_data, gahls_homophones, gahls_homophones_missing_in_data
 
 
-def calculate_contextual_predictability_of_homophones(hom_data, word_column = "word", prev_word_column = "prev_word", next_word_column = "next_word", prev_word_freq_column = "prev_word_frequency", next_word_freq_column = "next_word_frequency" ):
-    hom_data["prev_word_string"] = hom_data[prev_word_column] + "-" + hom_data[word_column]
-    hom_data["next_word_string"] = hom_data[word_column] + "_" + hom_data[next_word_column]
 
-    hom_data["prev_word_string_frequency"] = calculate_frequency_by_column(hom_data,"prev_word_string")
-    hom_data["next_word_string_frequency"] = calculate_frequency_by_column(hom_data,"next_word_string")
-
-    hom_data["cond_pred_prev"] = hom_data["prev_word_string_frequency"]/hom_data[prev_word_freq_column]
-    hom_data["cond_pred_next"] = hom_data["next_word_string_frequency"]/hom_data[next_word_freq_column]
-
-    return hom_data
 
 
 
@@ -145,28 +184,39 @@ def get_additional_data_from_files(df, file_description): # ["video", "eaf", "se
 
     file_df = None
 
-    for file in np.unique(df["source_file"]):
-        filepath = file_folder + get_file_path(file,is_gentle_file=is_gentle_file) + FILE_DESCRIPTIONS_TO_EXT[file_description]
-        #print(filepath)
-        if file_description == "video":
-            file_i_df = mp4_file_processing.get_word_video_snippet_size(df, filepath)
-        elif file_description == "eaf":
-            speech_annotation_eaf_data, gesture_eaf_data = eaf_file_processing.read_eaf(filepath)
-            file_i_df = eaf_file_processing.map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, remove_pauses=False)
-            file_i_df = eaf_file_processing.binary_encode_gestures(file_i_df, gesture_column="gesture")
+    if file_description not in list(FILE_DESCRIPTIONS_TO_EXT.keys()):
+        print("Unknown file description! Don't know what to do with %s files..." % file_description)
+        return None
 
-        elif file_description == "seg":
-            file_i_df = seg_file_processing.get_seg_file_pos_info(filepath)
+    else:
+        print("Load and extract information from %s files..." % file_description)
+        pbar = tqdm.tqdm(total = len(np.unique(df["source_file"])),desc='Files', position=0,leave=True,file=sys.stdout)
+        file_log = tqdm.tqdm(total=0, position=1, bar_format='{desc}',leave=True,file=sys.stdout)
+        for file in np.unique(df["source_file"]):
+            filepath = file_folder + get_file_path(file,is_gentle_file=is_gentle_file) + FILE_DESCRIPTIONS_TO_EXT[file_description]
 
-        elif file_description == "gentle":
-            file_i_df = gentle_file_processing.get_gentle_file_transcripts(filepath)
+            if file_description == "video":
+                file_i_df = mp4_file_processing.get_word_video_snippet_size(df, filepath)
+            elif file_description == "eaf":
+                speech_annotation_eaf_data, gesture_eaf_data = eaf_file_processing.read_eaf(filepath)
+                file_i_df = eaf_file_processing.map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, remove_pauses=False)
+                file_i_df = eaf_file_processing.binary_encode_gestures(file_i_df, gesture_column="gesture")
 
-        else:
-            print("Unknown file description! Don't know what to do with %s files..." % file_description)
+            elif file_description == "seg":
+                file_i_df = seg_file_processing.get_seg_file_pos_info(filepath)
 
-        if file_df is None:
-            file_df = file_i_df
-        else:
-            file_df = pd.concat([file_df, file_i_df], ignore_index=True)
+            elif file_description == "gentle":
+                file_i_df = gentle_file_processing.get_gentle_file_transcripts(filepath)
 
-    return file_df
+            if file_df is None:
+                file_df = file_i_df
+            else:
+                file_df = pd.concat([file_df, file_i_df], ignore_index=True)
+
+            file_log.set_description_str(f'Processed file: {file}')
+            pbar.update(1)
+            sleep(0.02)
+        file_log.close()
+        pbar.close()
+        return file_df
+

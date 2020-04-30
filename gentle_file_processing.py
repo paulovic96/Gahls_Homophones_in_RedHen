@@ -14,7 +14,23 @@ def get_gentle_file_transcripts(filepath):
         json_file = json.load(infile)
         text = json_file['transcript'].split("\n")
 
-    gentle_df = pd.DataFrame(text, columns=["gentle_transcription"])
+    gentle_df = pd.DataFrame(text, columns=["word"])
+    gentle_df["prev"] = gentle_df["word"].shift(1)
+    gentle_df["next"] = gentle_df["word"].shift(-1)
+    gentle_df["end_of_sentence"] = gentle_df["next"].isin([".", "!", "?"])
+    gentle_df["start_of_sentence"] = gentle_df["prev"].isin([".", "!", "?"])
+    gentle_df["preceding_marker"] = gentle_df["prev"].isin([",", ".", "?", "!", ":", ";"])
+    gentle_df["subsequent_marker"] = gentle_df["next"].isin([",", ".", "?", "!", ":", ";"])
     gentle_df["source_file"] = file
+
+    prev_words = gentle_df[~gentle_df.word.isin([",", ".", "?", "!", ":", ";"])]["word"].shift(1)
+    next_words = gentle_df[~gentle_df.word.isin([",", ".", "?", "!", ":", ";"])]["word"].shift(-1)
+
+    gentle_df.loc[~gentle_df.word.isin([",", ".", "?", "!", ":", ";"]), "prev_word"] = prev_words
+    gentle_df.loc[~gentle_df.word.isin([",", ".", "?", "!", ":", ";"]), "next_word"] = next_words
+
+    #gentle_df.drop(columns=['prev', 'next'], inplace=True)
+
+
     return gentle_df
 
