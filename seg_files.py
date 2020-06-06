@@ -47,6 +47,15 @@ def read_seg(filepath):
     return lang, header, credit, body
 
 def get_pos1(body):
+    """
+    :param body: The body of the seg file
+    :return (pd.DataFrame): Dataframe containin pos1 (English parts of speech with dependencies, using MBSP 1.4) information:
+    - word
+    - pos : part of speech
+    - rel1: relation1
+    - rel2: relation2
+    - lemma: lemma
+    """
     pos1 = {"word":[], "pos":[], "rel1":[], "rel2":[], "lemma":[]}
     for line in body:
         line = line.strip().split("|")

@@ -13,7 +13,12 @@ LEN_FILE_EXT = len(FILE_EXT)
 
 
 def read_eaf(filepath):
-    file = os.path.basename(filepath)[:-LEN_FILE_EXT]
+    """
+    :param filepath (str): the eaf file
+    :return speech_annotation_eaf_data (pd.DataFrame): Dataframe containing the annotated words with time points
+    :return gesture_eaf_data (pd.DataFrame): Dataframe containing the annotated gestures with time points
+    """
+    file = os.path.basename(filepath)[:-LEN_FILE_EXT] # file name without ending
     gesture_dict = {"time_region": [], "gesture": [], "source_file": []}  # store 1. Time Region, 2. Gesture, 3. File
     speech_annotation_dict = {"time_region": [], "annotation": [], "source_file": []}  # store 1. Time Region, 2. Annotation, 3. File
 
@@ -27,7 +32,7 @@ def read_eaf(filepath):
         speech_annotation_dict["annotation"] += [annotation.features['annotation_value']] # annotation
         speech_annotation_dict["source_file"] += [file] # file
 
-    speech_annotation_eaf_data = pd.DataFrame.from_dict(speech_annotation_dict)
+    speech_annotation_eaf_data = pd.DataFrame.from_dict(speech_annotation_dict) # Dataframe contianin the words annotated in the eaf file
 
     # Get Machine annotated gesture and time_regions
     for tier in ag.tier_hierarchies:
@@ -49,7 +54,7 @@ def read_eaf(filepath):
                             gesture_dict["gesture"] += [key] # gesture
                             gesture_dict["source_file"] += [file] # file
 
-    gesture_eaf_data = pd.DataFrame.from_dict(gesture_dict)
+    gesture_eaf_data = pd.DataFrame.from_dict(gesture_dict) # Dataframe containing the gestures annotated in the eaf file
 
     # Add Start and End point of Time region
     start = []
@@ -79,6 +84,13 @@ def read_eaf(filepath):
     return (speech_annotation_eaf_data, gesture_eaf_data)
 
 def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, remove_pauses=True):
+    """
+    :param speech_annotation_eaf_data (pd.DataFrame): Dataframe containing the annotated words with time points
+    :param gesture_eaf_data (pd.DataFrame): Dataframe containing the annotated gestures with time points
+    :param remove_pauses (boolean): whether we want to remove time points where nothing is said
+    :return merged_annotation_gesture_eaf_data (pd.DataFrame): Dataframe containing the annotated speech plus information about used gestures during articulation
+    """
+
     # create time point tuple for line sweep algorithm for each file
     # Tuple Structure:
     # - Time point
@@ -235,6 +247,11 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
 
 
 def binary_encode_gestures(data, gesture_column = "gesture"):
+    """
+    :param data (pd.Dataframe): Dataframe containig speech annotation with already matched gestures
+    :param gesture_column (str): Name of the column containing the gesture information
+    :return (pd.DataFrame): data joined with columns for binary encoded gestures
+    """
     unique_gestures = set()
     for gesture_list in data[gesture_column]:
         if isinstance(gesture_list, list):

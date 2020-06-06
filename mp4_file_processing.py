@@ -9,6 +9,13 @@ from moviepy.config import get_setting
 
 
 def ffmpeg_extract_subclip(filename, t1, t2, targetname=None):
+    """
+    :param filename (str): filename of the video file
+    :param t1 (float): start time in seconds
+    :param t2 (float): end time in seconds
+    :param targetname (str):
+    :return:
+    """
     """ Makes a new video file playing video file ``filename`` between
         the times ``t1`` and ``t2``. """
     name, ext = os.path.splitext(filename)
@@ -62,6 +69,16 @@ LEN_FILE_EXT = len(FILE_EXT)
 
 
 def get_word_video_snippet_size(data, filepath):
+    """
+    :param data (pd.DataFrame): The Datafrane containing the words and time points for which we want to extract the subclip
+    :param filepath (str): The file from which we want to extract the subclips
+    :return (pd.DataFrame): Dataframe containing the subclip information
+    - source_file : file name
+    - word : the word for which we extracted the subclip
+    - start : start time point
+    - end : end time point
+    - video_snippet_size : the size of the extracted subclip in bytes
+    """
     file = os.path.basename(filepath)[:-LEN_FILE_EXT]
     video_snippet_dict = {"source_file": [],"word":[], "start": [], "end": [], "video_snippet_size": []}
 

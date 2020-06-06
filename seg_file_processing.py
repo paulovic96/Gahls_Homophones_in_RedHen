@@ -6,6 +6,20 @@ FILE_EXT = '.seg'
 LEN_FILE_EXT = len(FILE_EXT)
 
 def get_seg_file_pos_info(filepath):
+    """
+    :param filepath (str): filepath to the seg file
+    :return pos1 (pd.DataFrame): Dataframe containing the pos1 (English parts of speech with dependencies, using MBSP 1.4) information for each word and additional data:
+    - word
+    - pos : part of speech
+    - rel1: relation1
+    - rel2: relation2
+    - lemma: lemma
+    - end_of_sentence : indicator whether the word is at the end of a sentence
+    - start_of_sentence : indicator whether the word is at the beginning of a sentence
+    - preceding_marker : indicator whether the word is preceding to a marker
+    - subsequent_marker: indicator whether the word is subsequent to a marker
+    - source_file: file the information is extracted from
+    """
     file = os.path.basename(filepath)[:-LEN_FILE_EXT]
     lang, header, credit, body = seg_files.read_seg(filepath)
     pos1 = seg_files.get_pos1(body)

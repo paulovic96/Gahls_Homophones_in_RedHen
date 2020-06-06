@@ -6,9 +6,21 @@ import os
 FILE_EXT = '.gentleoutput_v2.json.gz'
 LEN_FILE_EXT = len(FILE_EXT)
 
-filepath = "Data/gentle_files/2016-12-17_1330_US_KCET_Asia_Insight.gentleoutput_v2.json.gz"
+#filepath = "Data/gentle_files/2016-12-17_1330_US_KCET_Asia_Insight.gentleoutput_v2.json.gz"
 
 def get_gentle_file_transcripts(filepath):
+    """
+    :param filepath (str): filepath to the seg file
+    :return gentle_df (pd.DataFrame): The dataframe containing the genl file information:
+    - word
+    - prev: previous word
+    - next: next word
+    - end_of_sentence : indicator whether the word is at the end of a sentence
+    - start_of_sentence : indicator whether the word is at the beginning of a sentence
+    - preceding_marker : indicator whether the word is preceding to a marker
+    - subsequent_marker: indicator whether the word is subsequent to a marker
+    - source_file: file the information is extracted from
+    """
     file = os.path.basename(filepath)[:-LEN_FILE_EXT]
     with gzip.open(filepath, "rb") as infile:
         json_file = json.load(infile)
