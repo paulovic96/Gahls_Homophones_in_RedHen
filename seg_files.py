@@ -73,5 +73,8 @@ def get_pos1(body):
     return pd.DataFrame.from_dict(pos1)
 
 
+def get_ges2(body):
+    raise NotImplenetedError("to be implemented")
 
-
+def get_ges3(body):
+    raise NotImplenetedError("to be implemented")

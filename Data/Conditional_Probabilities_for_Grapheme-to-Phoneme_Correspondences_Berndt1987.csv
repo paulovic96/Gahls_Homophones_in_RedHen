@@ -17,14 +17,14 @@ A-E;.0111;uh-;.002;pirate;vowel
 AE;.00005;ee;.833;algae;vowel
 AE;.00005;eh;.166;aesthetic;vowel
 AH;.00003;ah;1.000;dahlia;vowel
-Al;.0026;ay;.734;aid ;vowel
-Al;.0026;eh;.176;said;vowel
-Al;.0026;ih;.053;captain;vowel
-Al;.0026;uh-;.031;villain;vowel
-Al;.0026;ae;.003;plaid;vowel
-Al-E;.0002;ay;.818;aide;vowel
-Al-E;.0002;eh;.136;millionaire;vowel
-Al-E;.0002;ai;.045;aisle;vowel
+AI;.0026;ay;.734;aid ;vowel
+AI;.0026;eh;.176;said;vowel
+AI;.0026;ih;.053;captain;vowel
+AI;.0026;uh-;.031;villain;vowel
+AI;.0026;ae;.003;plaid;vowel
+AI-E;.0002;ay;.818;aide;vowel
+AI-E;.0002;eh;.136;millionaire;vowel
+AI-E;.0002;ai;.045;aisle;vowel
 AIGH;.00003;ay;1.000;straight;vowel
 AO;.00001;aw;1.000;extraordinary;vowel
 AU;.0014;aw;.948;faucet;vowel
@@ -70,14 +70,14 @@ EAU;.0001;yu;.454;beauty;vowel
 EE;.0026;ee;.979;bee;vowel
 EE;.0026;ih;.020;been;vowel
 EE-E;.00008;ee;1.000;geese;vowel
-El;.0005;ee;.315;ceiling;vowel
-El;.0005;ay;.245;vein;vowel
-El;.0005;ih;.192;forfeit;vowel
-El;.0005;ai;.105;stein;vowel
-El;.0005;eh;.105;heifer;vowel
-El;.0005;uh-;.035;sovereign;vowel
-El-E;.00007;ee;.750;seize;vowel
-El-E;.00007;ay;.250;seine;vowel
+EI;.0005;ee;.315;ceiling;vowel
+EI;.0005;ay;.245;vein;vowel
+EI;.0005;ih;.192;forfeit;vowel
+EI;.0005;ai;.105;stein;vowel
+EI;.0005;eh;.105;heifer;vowel
+EI;.0005;uh-;.035;sovereign;vowel
+EI-E;.00007;ee;.750;seize;vowel
+EI-E;.00007;ay;.250;seine;vowel
 EIGH;.0001;ay;.857;eight;vowel
 EIGH;.0001;ai;.142;height;vowel
 EO;.0001;uh-;.666;pigeon;vowel
@@ -99,17 +99,17 @@ EY;.0005;ay;.225;they ;vowel
 EY;.0005;ai;.016;geyser;vowel
 EY;.0005;eh;.016;eyrie;vowel
 EY-E;.00006;ai;1.000;eye ;vowel
-EY-E;.0688;ih;.716;in;vowel
-EY-E;.0688;uh-;.180;civil;vowel
-EY-E;.0688;ai;.074;find;vowel
-EY-E;.0688;er;.015;affirm ;vowel
-EY-E;.0688;y;.008;senior;vowel
-EY-E;.0688;ee;.005;ski;vowel
+I;.0688;ih;.716;in;vowel
+I;.0688;uh-;.180;civil;vowel
+I;.0688;ai;.074;find;vowel
+I;.0688;er;.015;affirm ;vowel
+I;.0688;y;.008;senior;vowel
+I;.0688;ee;.005;ski;vowel
 I-E;.0086;ai;.589;ice;vowel
 I-E;.0086;ih;.356;give;vowel
-I-E;.0086;ee;46;elite;vowel
-I-E;.0086;uh-;6;fragile ;vowel
-I-E;.0086;er;1;dirge;vowel
+I-E;.0086;ee;.046;elite;vowel
+I-E;.0086;uh-;.006;fragile ;vowel
+I-E;.0086;er;1.000;dirge;vowel
 IA;.00001;uh-;1.000;parliament;vowel
 IA-E;.00002;ih;1.000;marriage;vowel
 IE;.0011;ee;.492;chief;vowel
@@ -199,7 +199,7 @@ UE;.0003;oo;.372;blue;vowel
 UI;.0002;ih;.533;build;vowel
 UI;.0002;yu;.266;suit;vowel
 UI;.0002;oo;.200;fruit;vowel
-Ul-E;.00003;oo;1.000;juice;vowel
+UI-E;.00003;oo;1.000;juice;vowel
 UO;.00001;oo;1.000;buoyant;vowel
 UY;.00002;ai;1.000;buy;vowel
 Y;.0193;ee;.786;story;vowel

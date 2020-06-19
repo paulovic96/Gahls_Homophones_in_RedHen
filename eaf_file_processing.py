@@ -1,4 +1,4 @@
-# Author: Paul Schmidt-barbo and Elnaz Shafaei
+# Author: Paul Schmidt-barbo and Elnaz Shafaeis
 import numpy as np
 import os
 import gzip
@@ -9,7 +9,7 @@ import pandas as pd
 FILE_EXT = '.eaf.gz'
 LEN_FILE_EXT = len(FILE_EXT)
 
-#filepath = 'Data/eaf_files/2016-12-17_1330_US_KCET_Asia_Insight.eaf.gz'
+#filepath = '/mnt/Restricted/Corpora/RedHen/original/2016/2016-01/2016-01-01/2016-01-01_0100_US_KNBC_Channel_4_News.eaf.gz'
 
 
 def read_eaf(filepath):
@@ -213,7 +213,7 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
 
         for index, row in merged_annotation_gesture_eaf_data.iterrows():
             if pd.isnull(row["end"]):
-                if len(active_gesture) == 0:
+                if len(str(active_gesture)) == 0:
                     active_gesture = row["gesture"]
                     active_end_region = row["time_region_gesture"][1]
                 else : # new gesture present
@@ -224,7 +224,7 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
                     active_gesture = row["gesture"]
                     active_end_region = row["time_region_gesture"][1]
             else: # annoation
-                if len(active_gesture) == 0:
+                if len(str(active_gesture)) == 0:
                     valid_end_points.append(row["end"])
                 else:
                     if row["start"] <= active_end_region:

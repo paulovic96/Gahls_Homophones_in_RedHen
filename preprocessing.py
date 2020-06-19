@@ -255,6 +255,10 @@ def get_additional_data_from_files(df, file_description): # file description one
 
             elif file_description == "gentle":
                 file_i_df = gentle_file_processing.get_gentle_file_transcripts(filepath)
+                
+            else:
+                print("Unknown file format!!!")
+                return
 
             if file_df is None:
                 file_df = file_i_df
