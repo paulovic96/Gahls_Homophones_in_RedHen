@@ -61,9 +61,15 @@ def get_pos1(body):
         line = line.strip().split("|")
         if line[2] == "POS_01":
             words_with_tags = line[3:]
-            words_with_tags = [x.split("/") for x in words_with_tags]
-
-            words, pos, rel1, rel2, lemma = map(list, zip(*words_with_tags))
+            words_with_tags_splitted = []
+            for x in words_with_tags:
+                if "/" in x:
+                    words_with_tags_splitted.append(x.split("/"))
+                else:
+                    words_with_tags_splitted.append([float('nan'),float('nan'),float('nan'),float('nan'),float('nan')])
+            #words_with_tags = [x.split("/") for x in words_with_tags]
+            words, pos, rel1, rel2, lemma = map(list, zip(*words_with_tags_splitted))
+            
             pos1["word"] += words
             pos1["pos"] += pos
             pos1["rel1"] += rel1
