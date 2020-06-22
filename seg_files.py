@@ -35,6 +35,8 @@ def read_seg(filepath):
         line = line.strip().split("|")
         if line[0] == "LAN":
             lang = line[1]
+        else:
+            lang = None
         if line[0] == "LBT":
             end_header = ind
         if re.fullmatch('^[A-Z]{3}_\d{2}', line[0]):
