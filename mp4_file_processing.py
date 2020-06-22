@@ -27,6 +27,7 @@ def ffmpeg_extract_subclip(filename, t1, t2, targetname=None):
            "-ss", "%0.2f" % t1,
            "-i", filename,
            "-t", "%0.2f" % (t2 - t1),
+           "-c:s", "mov_text",
            "-map", "0", "-vcodec", "copy", "-acodec", "copy", targetname]
 
     subprocess_call(cmd)
@@ -100,4 +101,5 @@ def get_word_video_snippet_size(data, filepath):
         os.remove("snippet.mp4")
 
     return pd.DataFrame.from_dict(video_snippet_dict)
+
 
