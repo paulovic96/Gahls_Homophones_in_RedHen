@@ -144,14 +144,29 @@ if __name__ == '__main__':
     scd = torch.hub.load('pyannote/pyannote-audio', 'scd_ami')  # , pipeline=True)
     peak = Peak(alpha=0.2, min_duration=0.20, log_scale=True)
 
+    speaking_rates_prev = []
+    speaking_rates_next = []
+
+    counter = 0
     for idx, row in df_hom.iterrows():
         #row = df_hom.loc[0]
+        if counter % 10000 == 0:
+            print("Calculating speaking rate for row %d/%d" % (counter, len(df_hom)))
         prev_context, prev_file, next_context, next_file = get_audio_segments(row)
 
         prev_partition = detect_speaker_changes(scd, peak, prev_file)
         next_partition = detect_speaker_changes(scd, peak, next_file)
 
         speaking_rate_prev, speaking_rate_next = calulate_contextual_speaking_rate(row, prev_context, prev_partition, next_context, next_partition)
+        speaking_rates_prev.append(speaking_rate_prev)
+        speaking_rates_next.append(speaking_rate_next)
+
         os.remove(prev_file)
         os.remove(next_file)
+        counter += 1
+
+    df_hom["speaking_rate_prev"] = speaking_rates_prev
+    df_hom["speaking_rate_next"] = speaking_rates_next
+
+    df_hom.to_csv("2016_all_words_no_audio_preprocessed_speaking_rate.csv")
 
