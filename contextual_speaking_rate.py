@@ -54,11 +54,11 @@ def get_next_context(row):
     return next_context[next_context.end <= interruptions.iloc[0].start]
 
 
-def get_audio_segments(row):
+def get_audio_segments(row,audio,sr):
     prev_context = get_prev_context(row)
     next_context = get_next_context(row)
-    audio_file = get_file_path(row.source_file, '.wav')
-    audio, sr = librosa.load(audio_file, sr=None)
+    #audio_file = get_file_path(row.source_file, '.wav')
+    #audio, sr = librosa.load(audio_file, sr=None)
     # word
 
     word = row.word
@@ -156,15 +156,34 @@ if __name__ == '__main__':
     scd = torch.hub.load('pyannote/pyannote-audio', 'scd_ami')  # , pipeline=True)
     peak = Peak(alpha=0.2, min_duration=0.20, log_scale=True)
     
+    df_hom.sort_values(by="source_file", inplace=True)
+    
     speaking_rates_prev = []
     speaking_rates_next = []
     
+    
     counter = 0
+    file_counter = 1
+    n_unique_files = len(df_hom.source_file.unique())
+    n_rows = len(df_hom)
+    
     for idx, row in df_hom.iterrows():
-        #row = df_hom.loc[0]
-        if counter%10000 == 0:
-            print("Calculating speaking rate for row %d/%d" % (counter,len(df_hom)))
-        prev_context, prev_file, next_context, next_file = get_audio_segments(row)
+        if counter == 0: 
+            print("File %d/%d" % (file_counter,n_unique_files))
+            current_file = row.source_file
+            audio_file = get_file_path(current_file, '.wav')
+            audio, sr = librosa.load(audio_file, sr=None)
+
+        else:
+            if row.source_file != current_file: 
+                file_counter += 1
+                print("File %d/%d" % (file_counter,n_unique_files))
+                current_file = row.source_file 
+                audio_file = get_file_path(current_file, '.wav')
+                audio, sr = librosa.load(audio_file, sr=None)
+
+
+        prev_context, prev_file, next_context, next_file = get_audio_segments(row, audio, sr)
 
         prev_partition = detect_speaker_changes(scd, peak, prev_file)
         next_partition = detect_speaker_changes(scd, peak, next_file)
@@ -172,7 +191,12 @@ if __name__ == '__main__':
         speaking_rate_prev, speaking_rate_next = calulate_contextual_speaking_rate(row, prev_context, prev_partition, next_context, next_partition)
         os.remove(prev_file)
         os.remove(next_file)
+
+        if counter % 1000 == 0:
+            print("Finished calculating speaking rate for row %d/%d" % (counter,n_rows))
+
         counter += 1
+    
     
     df_hom["speaking_rate_prev"] = speaking_rates_prev
     df_hom["speaking_rate_next"] = speaking_rates_next
