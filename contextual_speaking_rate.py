@@ -104,67 +104,76 @@ def detect_speaker_changes(speech_dection_model, peak_detection_model, file):
     return partition
 
 
-def calulate_contextual_speaking_rate(row, prev_context, prev_partition, next_context, next_partition):
+def calculate_syl_counts(context):
+    #missing_words = []
+    #missing_words_estimate = []
+    SylCnts = []
+    for i,row in context.iterrows():
+        if celex_dict[celex_dict.Word == row.word.lower()].PhonStrsDISC.empty:
+            SyllCnt = syllables.estimate(row.word)
+            #missing_words.append(row.word)
+            #missing_words_estimate.append(SyllCnt)
+        else:
+            PhonStrsDisc = celex_dict[celex_dict.Word == row.word.lower()].PhonStrsDISC.iloc[0]
+            SyllCnt = PhonStrsDisc.count("-")+1
+        SylCnts.append(SyllCnt)
+
+    return SylCnts
+    
+
+def calculate_contextual_speaking_rate(row, prev_context,prev_partition,next_context,next_partition):
     source_file, word, start, end = row[['source_file', 'word', 'start', 'end']]
     speaker_onset = prev_partition[-1].end - prev_partition[-1].start
     speaker_offset = next_partition[0].end - next_partition[0].start
-
-    # print(speaker_onset, start)
-
+    
+    
     valid_prev_context = prev_context.loc[
-        (start - prev_context.start >= 0) &
-        (start - prev_context.start <= speaker_onset)]
-
-    # print(valid_prev_context)
-
+                                 (start - prev_context.start >= 0) & 
+                                 (start - prev_context.start <= speaker_onset) ]
+    
+    
     valid_next_context = next_context.loc[
-        (next_context.end - end >= 0) &
-        (next_context.end - end <= speaker_offset)]
-
-    syl_counts_prev = [syllables.estimate(word) for word in
-                       valid_prev_context.word]  # get_syl_counts(valid_prev_context).SylCnt
-    syl_counts_next = [syllables.estimate(word) for word in
-                       valid_next_context.word]  # get_syl_counts(valid_next_context).SylCnt
-    print(np.sum(syl_counts_prev), np.sum(syl_counts_next))
-
+                                 (next_context.end - end >= 0) & 
+                                 (next_context.end - end <= speaker_offset)]
+    
+    #syl_counts_prev = [syllables.estimate(word) for word in valid_prev_context.word]#get_syl_counts(valid_prev_context).SylCnt
+    #syl_counts_next = [syllables.estimate(word) for word in valid_next_context.word]#get_syl_counts(valid_next_context).SylCnt
+    syl_counts_prev = calculate_syl_counts(valid_prev_context)
+    syl_counts_next = calculate_syl_counts(prev_next_context)
+    
     prev_stretch_duration = np.sort(valid_prev_context.end)[-1] - np.sort(valid_prev_context.start)[0]
     next_stretch_duration = np.sort(valid_next_context.end)[-1] - np.sort(valid_next_context.start)[0]
-
-    print(prev_stretch_duration, next_stretch_duration)
-
-    speaking_rate_prev = np.sum(syl_counts_prev) / prev_stretch_duration
-    speaking_rate_next = np.sum(syl_counts_next) / next_stretch_duration
-
+    
+    
+    speaking_rate_prev = np.sum(syl_counts_prev)/prev_stretch_duration
+    speaking_rate_next = np.sum(syl_counts_next)/next_stretch_duration
+    
     return speaking_rate_prev, speaking_rate_next
-
 
 if __name__ == '__main__':
     df_source = pd.read_pickle(DF_SOURCE_PATH)
     df_hom = pd.read_csv(DF_HOMEOHONES_PATH, index_col="Unnamed: 0")
     scd = torch.hub.load('pyannote/pyannote-audio', 'scd_ami')  # , pipeline=True)
     peak = Peak(alpha=0.2, min_duration=0.20, log_scale=True)
-
+    
     speaking_rates_prev = []
     speaking_rates_next = []
-
+    
     counter = 0
     for idx, row in df_hom.iterrows():
         #row = df_hom.loc[0]
-        if counter % 10000 == 0:
-            print("Calculating speaking rate for row %d/%d" % (counter, len(df_hom)))
+        if counter%10000 == 0:
+            print("Calculating speaking rate for row %d/%d" % (counter,len(df_hom)))
         prev_context, prev_file, next_context, next_file = get_audio_segments(row)
 
         prev_partition = detect_speaker_changes(scd, peak, prev_file)
         next_partition = detect_speaker_changes(scd, peak, next_file)
 
         speaking_rate_prev, speaking_rate_next = calulate_contextual_speaking_rate(row, prev_context, prev_partition, next_context, next_partition)
-        speaking_rates_prev.append(speaking_rate_prev)
-        speaking_rates_next.append(speaking_rate_next)
-
         os.remove(prev_file)
         os.remove(next_file)
         counter += 1
-
+    
     df_hom["speaking_rate_prev"] = speaking_rates_prev
     df_hom["speaking_rate_next"] = speaking_rates_next
 
