@@ -139,7 +139,7 @@ def calculate_contextual_speaking_rate(row, prev_context,prev_partition,next_con
     #syl_counts_prev = [syllables.estimate(word) for word in valid_prev_context.word]#get_syl_counts(valid_prev_context).SylCnt
     #syl_counts_next = [syllables.estimate(word) for word in valid_next_context.word]#get_syl_counts(valid_next_context).SylCnt
     syl_counts_prev = calculate_syl_counts(valid_prev_context)
-    syl_counts_next = calculate_syl_counts(prev_next_context)
+    syl_counts_next = calculate_syl_counts(valid_next_context)
     
     prev_stretch_duration = np.sort(valid_prev_context.end)[-1] - np.sort(valid_prev_context.start)[0]
     next_stretch_duration = np.sort(valid_next_context.end)[-1] - np.sort(valid_next_context.start)[0]
@@ -188,7 +188,7 @@ if __name__ == '__main__':
         prev_partition = detect_speaker_changes(scd, peak, prev_file)
         next_partition = detect_speaker_changes(scd, peak, next_file)
 
-        speaking_rate_prev, speaking_rate_next = calulate_contextual_speaking_rate(row, prev_context, prev_partition, next_context, next_partition)
+        speaking_rate_prev, speaking_rate_next = calculate_contextual_speaking_rate(row, prev_context, prev_partition, next_context, next_partition)
         os.remove(prev_file)
         os.remove(next_file)
 
