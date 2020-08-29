@@ -237,7 +237,7 @@ def map_gestures_to_annotation(speech_annotation_eaf_data, gesture_eaf_data, rem
                     active_gesture = ""
                     active_end_region = 0
 
-        if len(active_gesture)>0:
+        if len(str(active_gesture))>0:
             valid_end_points.append(active_end_region)
 
         merged_annotation_gesture_eaf_data["end"] = valid_end_points

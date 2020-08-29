@@ -207,7 +207,7 @@ def read_and_extract_homophones(hom_filename, data):
     homophones_in_data = homophones_in_data.merge(gahls_homophones_in_data[["word", "pron", "celexPhon"]], on="word")
     homophones_in_data["pron_frequency"] = calculate_frequency_by_column(homophones_in_data,column="pron")
 
-    max_idx = homophones_in_data.groupby(['pron'])['pron_frequency'].transform(max).copy() == homophones_in_data["pron_frequency"]
+    max_idx = homophones_in_data.groupby(['pron'])['word_frequency'].transform(max).copy() == homophones_in_data["word_frequency"]
     homophones_in_data["is_max"] = np.asarray(max_idx,dtype = np.int)
 
 
@@ -240,7 +240,12 @@ def get_additional_data_from_files(df, file_description): # file description one
         print("Load and extract information from %s files..." % file_description)
         #pbar = tqdm.tqdm(total = len(np.unique(df["source_file"])),desc='Files', position=0,leave=True,file=sys.stdout)
         #file_log = tqdm.tqdm(total=0, position=1, bar_format='{desc}',leave=True,file=sys.stdout)
-        for file in np.unique(df["source_file"]):
+        print("Total files to laod and preprocess: ", len(np.unique(df["source_file"])))
+              
+        for i,file in enumerate(np.unique(df["source_file"])):
+            if i%100 == 0:
+                print("File: ",i)
+            
             filepath = file_folder + get_file_path(file,is_gentle_file=is_gentle_file) + FILE_DESCRIPTIONS_TO_EXT[file_description]
 
             if file_description == "video":
@@ -255,10 +260,10 @@ def get_additional_data_from_files(df, file_description): # file description one
 
             elif file_description == "gentle":
                 file_i_df = gentle_file_processing.get_gentle_file_transcripts(filepath)
-                
+            
             else:
                 print("Unknown file format!!!")
-                return
+                return     
 
             if file_df is None:
                 file_df = file_i_df

@@ -102,4 +102,3 @@ def get_word_video_snippet_size(data, filepath):
 
     return pd.DataFrame.from_dict(video_snippet_dict)
 
-

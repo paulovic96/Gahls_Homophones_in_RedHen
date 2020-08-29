@@ -3,6 +3,38 @@ import numpy as np
 from english_contractions import ENGLISH_CONTRACTIONS
 
 
+def find_close(df1, df1_col, df2, df2_col, tolerance=1):
+    mapped_df = None
+    for index, value in df1[df1_col].iteritems():
+        indices = df2.index[np.isclose(df2[df2_col].values, value, atol=tolerance)]
+        s = pd.DataFrame(data={'idx1': index, 'idx2': indices.values})
+        if mapped_df is None:
+            mapped_df = s # first file data replaces None
+        else:
+            mapped_df = pd.concat([mapped_df, s])
+    return mapped_df
+
+def map_data_to_eaf_by_close(hom_data, eaf_data):
+    hom_data.start = hom_data.start.round(2)
+    eaf_data.annotation = eaf_data.annotation.str.lower()
+    eaf_data = eaf_data[eaf_data['annotation'].isin(np.unique(hom_data["word"]))].sort_values(by = "start")
+    eaf_data.start = (eaf_data.start / 1000).round(2)
+    eaf_data.rename(columns={"annotation": "word"}, inplace=True)
+    df_idx = find_close(hom_data, 'start', eaf_data, 'start')
+    
+    hom_data_close = pd.merge(hom_data, df_idx, left_index=True, right_on = "idx1", how = "left").set_index("idx1")
+    hom_data_close = hom_data_close[~hom_data_close.index.duplicated(keep='first')]
+    hom_data_merged = pd.merge(hom_data_close, eaf_data[['gesture', 'HandMoving', 'PersonOnScreen',
+                      'SpeakerOnScreen', 'HeadMoving/MovingVertically',
+                      'ShoulderMoving/NotWithHead', 'HeadMoving/MovingHorizontally',
+                      'ShoulderMoving/NoSlidingWindow', 'none',
+                      'ShoulderMoving/SlidingWindow', 'is_gesture']], right_index=True, left_on="idx2", how="left")
+    
+    hom_data_merged.drop(columns=["idx2"], inplace = True)
+    return hom_data_merged
+
+
+
 def merge_eaf_df_to_homophone_data(hom_in_data_df, eaf_df):
     """
     :param hom_in_data_df (pd.DataFrame): The dataframe containing homophones
@@ -15,18 +47,55 @@ def merge_eaf_df_to_homophone_data(hom_in_data_df, eaf_df):
       'none', 'ShoulderMoving/SlidingWindow',: one hat encoded gestures
     - is_gesture : indicating whether a gesture is present in video
     """
-    hom_in_eaf_data_df = eaf_df[eaf_df['annotation'].isin(np.unique(hom_in_data_df["word"]))].sort_values(by = ["source_file", "start"]) # extract homophones and sort by file and start
-    #hom_in_eaf_data_df.sort_values(by = ["source_file", "start"], inplace = True)
-    hom_in_data_df.start = hom_in_data_df.start.round(2) # round time to match when merged
-    hom_in_eaf_data_df.start = (hom_in_eaf_data_df.start / 1000).round(2) # convert and round time
-    hom_in_eaf_data_df.end = (hom_in_eaf_data_df.end / 1000).round(2)
-    hom_in_eaf_data_df.rename(columns={"annotation": "word"}, inplace=True)
+    files = hom_in_data_df.source_file.unique()
+    
+    hom_eaf_merged_df = None
+    counter = 0
+    for file in files:
+        if counter % 100 == 0:
+            print(counter+1, " / ", len(files))
+        
+        df1 = hom_in_data_df[hom_in_data_df.source_file == file].copy()
+        df2 = eaf_df[eaf_df.source_file == file].copy()
+   
+        hom_data_merged = map_data_to_eaf_by_close(df1,df2)
 
-    return hom_in_data_df.merge(hom_in_eaf_data_df[['word', 'source_file', 'start', 'gesture', 'HandMoving', 'PersonOnScreen',
-                      'SpeakerOnScreen', 'HeadMoving/MovingVertically',
-                      'ShoulderMoving/NotWithHead', 'HeadMoving/MovingHorizontally',
-                      'ShoulderMoving/NoSlidingWindow', 'none',
-                      'ShoulderMoving/SlidingWindow', 'is_gesture']], on=["source_file", "start", "word"], how="left")
+        if hom_eaf_merged_df is None:
+            hom_eaf_merged_df = hom_data_merged # first file data replaces None
+        else:
+            hom_eaf_merged_df = pd.concat([hom_eaf_merged_df, hom_data_merged])
+        counter += 1 
+        
+    return hom_eaf_merged_df
+    
+    
+    
+    
+#def merge_eaf_df_to_homophone_data(hom_in_data_df, eaf_df):
+#    """
+#    :param hom_in_data_df (pd.DataFrame): The dataframe containing homophones
+#    :param eaf_df (pd.DataFrame): The dataframe containing additional data from the eaf files
+#    :return (pd.DataFrame): merged dataframe containing additional data:
+#    - gesture : string with gestures present in video during articulation
+#    - HandMoving', 'PersonOnScreen','SpeakerOnScreen',
+#      'HeadMoving/MovingVertically','ShoulderMoving/NotWithHead',
+#      'HeadMoving/MovingHorizontally','ShoulderMoving/NoSlidingWindow',
+#      'none', 'ShoulderMoving/SlidingWindow',: one hat encoded gestures
+#    - is_gesture : indicating whether a gesture is present in video
+#    """
+#    hom_in_eaf_data_df = eaf_df[eaf_df['annotation'].isin(np.unique(hom_in_data_df["word"]))].sort_values(by = ["source_file", "start"]) # extract homophones and sort by file and start
+    #hom_in_eaf_data_df.sort_values(by = ["source_file", "start"], inplace = True)
+#    hom_in_data_df.start = hom_in_data_df.start.round(2) # round time to match when merged
+#    hom_in_eaf_data_df.start = (hom_in_eaf_data_df.start / 1000).round(2) # convert and round time
+#    hom_in_eaf_data_df.end = (hom_in_eaf_data_df.end / 1000).round(2)
+#    hom_in_eaf_data_df.rename(columns={"annotation": "word"}, inplace=True)
+
+#    return hom_in_data_df.merge(hom_in_eaf_data_df[['word', 'source_file', 'start', 'gesture', 'HandMoving', 'PersonOnScreen',
+#                      'SpeakerOnScreen', 'HeadMoving/MovingVertically',
+#                      'ShoulderMoving/NotWithHead', 'HeadMoving/MovingHorizontally',
+#                      'ShoulderMoving/NoSlidingWindow', 'none',
+#                      'ShoulderMoving/SlidingWindow', 'is_gesture']], on=["source_file", "start", "word"], how="left")
+
 
 
 def merge_video_df_to_homophone_data(hom_in_data_df, video_df):
@@ -66,7 +135,11 @@ def merge_gentle_df_to_homophone_data(hom_in_data_df, gentle_df):
     hom_in_gentle_data_df = gentle_df[gentle_df['word'].isin(np.unique(hom_in_data_df["word"]))].sort_values(by = ["source_file", "IDX"]) # extract homophones and sort by file and index
 
     merged_hom_data = None # The dataframe we are building by incrementally merging the dataframes
-    for file in np.unique(hom_in_data_df.source_file): # look at sub df for each file separately
+    print("Merge gentle data for %d unique files!" % len(np.unique(hom_in_data_df.source_file)))
+          
+    for f, file in enumerate(np.unique(hom_in_data_df.source_file)): # look at sub df for each file separately
+        if f%100 == 0:
+            print("File: ", f)
         hom_in_data_i = hom_in_data_df[hom_in_data_df.source_file == file].sort_values(by=["start"]) # make sure that df is sorted
         hom_in_gentle_data_i = hom_in_gentle_data_df[hom_in_gentle_data_df.source_file == file].sort_values(by=["IDX"]) # make sure that the gentle data for this file is sorted
 
@@ -79,8 +152,9 @@ def merge_gentle_df_to_homophone_data(hom_in_data_df, gentle_df):
         hom_in_data_i["gentle_subsequent_marker"] = None
         hom_in_data_i["gentle_merging"] = None
         hom_in_data_i["gentle_index"] = None
-
+        
         for row_index, row in hom_in_data_i.iterrows(): #iterate over each row
+       
             hom = row["word"] #the homophones we are looking at
 
             prev_word = row["prev_word"] # context
@@ -188,7 +262,10 @@ def merge_seg_df_to_homophone_data(hom_in_data_df, seg_df):
     hom_in_seg_data_df = seg_df[seg_df['word'].isin(np.unique(hom_in_data_df["word"]))].sort_values(by=["source_file", "IDX"])  # extract homophones and sort by file and index
 
     merged_hom_data = None
-    for file in np.unique(hom_in_data_df.source_file):
+    print("Merge seg data for %d unique files!" % len(np.unique(hom_in_data_df.source_file)))
+    for f,file in enumerate(np.unique(hom_in_data_df.source_file)):
+        if f%100 == 0:
+            print("File: ", f)
         hom_in_data_i = hom_in_data_df[hom_in_data_df.source_file == file].sort_values(by=["start"])
         hom_in_seg_data_i = hom_in_seg_data_df[hom_in_seg_data_df.source_file == file].sort_values(by=["IDX"])
 

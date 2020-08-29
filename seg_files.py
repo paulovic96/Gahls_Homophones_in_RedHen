@@ -33,6 +33,7 @@ def read_seg(filepath):
         content = file.readlines()
     for ind, line in enumerate(content):
         line = line.strip().split("|")
+        #print(line[0])
         if line[0] == "LAN":
             lang = line[1]
         else:
@@ -43,6 +44,7 @@ def read_seg(filepath):
             end_credit = ind
         if line[0] == 'END':
             end = ind
+    
     header = content[:(end_header+1)]
     credit = content[(end_header+1):(end_credit+1)]
     body = content[(end_credit+1):end]
@@ -69,9 +71,9 @@ def get_pos1(body):
                     words_with_tags_splitted.append(x.split("/"))
                 else:
                     words_with_tags_splitted.append([float('nan'),float('nan'),float('nan'),float('nan'),float('nan')])
+                    
             #words_with_tags = [x.split("/") for x in words_with_tags]
             words, pos, rel1, rel2, lemma = map(list, zip(*words_with_tags_splitted))
-            
             pos1["word"] += words
             pos1["pos"] += pos
             pos1["rel1"] += rel1
